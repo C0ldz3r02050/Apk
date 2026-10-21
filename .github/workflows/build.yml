@@ -25,11 +25,13 @@ jobs:
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc
-        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf /usr/local/share/boost
 
     - name: Install System Dependencies & Android Build Tools
       run: |
         sudo apt-get update
+        # تثبيت libunwind-dev أولاً لحل مشكلة الاعتماديات المكسورة
+        sudo apt-get install -y libunwind-dev
         sudo apt-get install -y \
           build-essential \
           git \
@@ -55,12 +57,24 @@ jobs:
           libffi-dev \
           liblzma-dev \
           autoconf \
+          automake \
           libtool \
+          libltdl-dev \
           pkg-config \
           cmake \
           zip \
           unzip \
           openjdk-17-jdk
+
+    - name: Cache Buildozer
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          buildozer-${{ runner.os }}-
 
     - name: Install Buildozer & Dependencies
       run: |
@@ -69,10 +83,13 @@ jobs:
         pip install buildozer
 
     - name: Build APK with Buildozer
+      env:
+        BUILDOZER_WARN_ON_ROOT: "0"
       run: |
-        # Accept SDK licenses automatically & enable non-interactive mode
         export PATH=$PATH:~/.local/bin
-        yes | buildozer -v android debug
+        # قبول تراخيص SDK تلقائياً
+        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+        buildozer -v android debug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4.6.1
